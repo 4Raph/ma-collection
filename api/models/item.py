@@ -8,5 +8,5 @@ class Item(SQLModel, table=True):
     description: str
     image_url: str
     annee: int
-    types: str
+    type: str
     niveau: str
