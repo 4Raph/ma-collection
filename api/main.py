@@ -5,6 +5,8 @@ from sqlmodel import SQLModel
 
 from db.database import engine
 from models import CollectionEntry, Item, User
+from routers import auth_router, collection_router, items_router
+from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
@@ -17,10 +19,22 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Ma Collection API",
+    description="Catalogue et gestion personnelle d'attaques informatiques.",
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth_router)
+app.include_router(items_router)
+app.include_router(collection_router)
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"message": "Bienvenue sur notre collection d'attaque cybersécurité !!"}
+    return {"message": "Bienvenue sur notre site de collection d'attaque cybersécurité !!"}
