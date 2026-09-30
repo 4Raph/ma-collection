@@ -2,28 +2,18 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
-interface Attack {
-  id: number;
-  titre: string;
-  categorie: string;
-  description: string;
-  image_url: string;
-  annee: number;
-  type: string;
-  niveau: string;
-}
+import Navbar from "./components/NavBar";
+import SearchBar from "./components/SearchBar";
+import AttackCard from "./components/AttaqueCard";
+import AttackDetails from "./components/AttaqueDetails";
 
-interface ItemResponse {
-  total: number;
-  page: number;
-  limit: number;
-  results: Attack[];
-}
+import type { Attack, ItemResponse } from "./types/Attaque";
 
 function App() {
   const [attacks, setAttacks] = useState<Attack[]>([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Toutes");
+  const [selectedAttack, setSelectedAttack] = useState<Attack | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -58,9 +48,11 @@ function App() {
   ];
 
   const filteredAttacks = attacks.filter((attack) => {
+    const searchText = search.toLowerCase();
+
     const matchesSearch =
-      attack.titre.toLowerCase().includes(search.toLowerCase()) ||
-      attack.description.toLowerCase().includes(search.toLowerCase());
+      attack.titre.toLowerCase().includes(searchText) ||
+      attack.description.toLowerCase().includes(searchText);
 
     const matchesCategory =
       category === "Toutes" || attack.categorie === category;
@@ -70,23 +62,7 @@ function App() {
 
   return (
     <div className="app">
-      <header className="navbar">
-        <a className="brand" href="#">
-          <span className="brand-icon">⌘</span>
-          Cyber<span>Collection</span>
-        </a>
-
-        <nav>
-          <a className="nav-link active" href="#catalogue">
-            Catalogue
-          </a>
-          <a className="nav-link" href="#collection">
-            Ma collection
-          </a>
-        </nav>
-
-        <button className="login-button">Connexion</button>
-      </header>
+      <Navbar />
 
       <main>
         <section className="hero">
@@ -115,13 +91,20 @@ function App() {
           <div className="hero-decoration" aria-hidden="true">
             <div className="orbit orbit-one" />
             <div className="orbit orbit-two" />
+
             <div className="orbit-core">
               <span>01</span>
               <strong>CYBER</strong>
               <small>THREAT DATABASE</small>
             </div>
-            <span className="floating-tag tag-one">SQL INJECTION</span>
-            <span className="floating-tag tag-two">XSS ATTACK</span>
+
+            <span className="floating-tag tag-one">
+              SQL INJECTION
+            </span>
+
+            <span className="floating-tag tag-two">
+              XSS ATTACK
+            </span>
           </div>
         </section>
 
@@ -130,7 +113,9 @@ function App() {
             <div>
               <div className="eyebrow">BASE DE CONNAISSANCES</div>
               <h2>Catalogue des attaques</h2>
-              <p>Explore les techniques et leurs caractéristiques.</p>
+              <p>
+                Explore les techniques et leurs caractéristiques.
+              </p>
             </div>
 
             <div className="total-badge">
@@ -138,32 +123,17 @@ function App() {
             </div>
           </div>
 
-          <div className="filters">
-            <div className="search-box">
-              <span>⌕</span>
-              <input
-                type="text"
-                placeholder="Rechercher une attaque..."
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-              <kbd>CTRL K</kbd>
-            </div>
+          <SearchBar
+            search={search}
+            onSearchChange={setSearch}
+            category={category}
+            onCategoryChange={setCategory}
+            categories={categories}
+          />
 
-            <select
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              aria-label="Filtrer par catégorie"
-            >
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {loading && <p className="message">Chargement du catalogue...</p>}
+          {loading && (
+            <p className="message">Chargement du catalogue...</p>
+          )}
 
           {!loading && error && (
             <div className="error-message">{error}</div>
@@ -173,70 +143,36 @@ function App() {
             <p className="message">Aucune attaque trouvée.</p>
           )}
 
-          {!loading && !error && (
+          {!loading && !error && filteredAttacks.length > 0 && (
             <div className="attack-grid">
               {filteredAttacks.map((attack) => (
-                <article className="attack-card" key={attack.id}>
-                  <div className="card-top">
-                    <span className="category-badge">
-                      {attack.categorie}
-                    </span>
-                    <span className="card-id">
-                      #{String(attack.id).padStart(3, "0")}
-                    </span>
-                  </div>
-
-                  {attack.image_url && (
-                    <div className="attack-image">
-                      <img
-                        src={attack.image_url}
-                        alt=""
-                        loading="lazy"
-                      />
-                    </div>
-                  )}
-
-                  <h3>{attack.titre}</h3>
-                  <p className="attack-description">
-                    {attack.description}
-                  </p>
-
-                  <div className="card-details">
-                    <div>
-                      <span className="detail-label">ANNÉE</span>
-                      <span>{attack.annee}</span>
-                    </div>
-                    <div>
-                      <span className="detail-label">TYPE</span>
-                      <span>{attack.type}</span>
-                    </div>
-                    <div>
-                      <span className="detail-label">NIVEAU</span>
-                      <span className="level-badge">{attack.niveau}</span>
-                    </div>
-                  </div>
-
-                  <button
-                    className="card-button"
-                    onClick={() =>
-                      alert(`Attaque sélectionnée : ${attack.titre}`)
-                    }
-                  >
-                    Voir les détails <span>↗</span>
-                  </button>
-                </article>
+                <AttackCard
+                  key={attack.id}
+                  attack={attack}
+                  onDetails={setSelectedAttack}
+                />
               ))}
             </div>
           )}
         </section>
 
+        {selectedAttack && (
+          <AttackDetails
+            attack={selectedAttack}
+            onClose={() => setSelectedAttack(null)}
+          />
+        )}
+
         <footer>
           <a className="brand footer-brand" href="#">
             Cyber<span>Collection</span>
           </a>
+
           <p>Apprendre. Comprendre. Collectionner.</p>
+
           <span className="footer-status">
-            <span className="status-dot" /> API CONNECTÉE
+            <span className="status-dot" />
+            API CONNECTÉE
           </span>
         </footer>
       </main>

@@ -1,4 +1,3 @@
-
 export interface Attack {
   id: number;
   titre: string;
@@ -8,4 +7,11 @@ export interface Attack {
   annee: number;
   type: string;
   niveau: string;
+}
+
+export interface ItemResponse {
+  total: number;
+  page: number;
+  limit: number;
+  results: Attack[];
 }

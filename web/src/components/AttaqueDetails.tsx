@@ -17,7 +17,9 @@ function AttackDetails({ attack, onClose }: AttackDetailsProps) {
         onClick={(event) => event.stopPropagation()}
       >
         <div className="modal-header">
-          <span className="category-badge">{attack.categorie}</span>
+          <span className="category-badge">
+            {attack.categorie}
+          </span>
 
           <button
             className="modal-close"
@@ -40,7 +42,9 @@ function AttackDetails({ attack, onClose }: AttackDetailsProps) {
 
         <h2 id="modal-title">{attack.titre}</h2>
 
-        <p className="modal-description">{attack.description}</p>
+        <p className="modal-description">
+          {attack.description}
+        </p>
 
         <div className="modal-details">
           <div>
