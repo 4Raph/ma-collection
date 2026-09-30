@@ -1,8 +1,8 @@
+
 from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import HTTPException, status
-from sqlalchemy import UniqueConstraint
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -15,6 +15,20 @@ from schemas.collection import (
     CollectionUpdate,
 )
 from schemas.item import ItemResponse
+
+
+def build_item_response(item: Item) -> ItemResponse:
+    """Construit une réponse à partir d'un item déjà chargé."""
+    return ItemResponse(
+        id=item.id,
+        titre=item.titre,
+        categorie=item.categorie,
+        description=item.description,
+        image_url=item.image_url,
+        annee=item.annee,
+        type=item.type,
+        niveau=item.niveau,
+    )
 
 
 async def list_collection(
@@ -50,7 +64,7 @@ async def list_collection(
             responses.append(
                 CollectionEntryResponse(
                     id=entry.id,
-                    item=ItemResponse.model_validate(item),
+                    item=build_item_response(item),
                     statut=entry.statut,
                     note=entry.note,
                     commentaire=entry.commentaire,
@@ -87,7 +101,7 @@ async def add_to_collection(
     if existing.first() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Cette attaque est déjà dans la collection",
+            detail="Cette attaque est déjà dans votre collection",
         )
 
     entry = CollectionEntry(
@@ -98,6 +112,7 @@ async def add_to_collection(
         commentaire=data.commentaire,
         date_ajout=datetime.now(timezone.utc),
     )
+
     session.add(entry)
 
     try:
@@ -107,12 +122,12 @@ async def add_to_collection(
         await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Cette attaque est déjà dans votlare collection",
+            detail="Cette attaque est déjà dans votre collection",
         )
 
     return CollectionEntryResponse(
         id=entry.id,
-        item=ItemResponse.model_validate(item),
+        item=build_item_response(item),
         statut=entry.statut,
         note=entry.note,
         commentaire=entry.commentaire,
@@ -162,7 +177,7 @@ async def update_collection_entry(
 
     return CollectionEntryResponse(
         id=entry.id,
-        item=ItemResponse.model_validate(item),
+        item=build_item_response(item),
         statut=entry.statut,
         note=entry.note,
         commentaire=entry.commentaire,
@@ -198,9 +213,9 @@ async def get_collection_stats(
     user: User,
 ) -> CollectionStats:
     total_result = await session.exec(
-        select(func.count()).select_from(CollectionEntry).where(
-            CollectionEntry.user_id == user.id
-        )
+        select(func.count())
+        .select_from(CollectionEntry)
+        .where(CollectionEntry.user_id == user.id)
     )
     total = total_result.one()
 
@@ -233,5 +248,9 @@ async def get_collection_stats(
     return CollectionStats(
         total=total,
         par_statut=counts,
-        note_moyenne=round(float(average), 2) if average is not None else None,
+        note_moyenne=(
+            round(float(average), 2)
+            if average is not None
+            else None
+        ),
     )
