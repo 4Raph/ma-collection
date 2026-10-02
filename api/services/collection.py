@@ -91,6 +91,10 @@ async def add_to_collection(
             detail="Item introuvable",
         )
 
+    # Préparer les données de l'item avant le commit.
+    # Cela évite de relire ses attributs après la transaction.
+    item_response = build_item_response(item)
+
     existing = await session.exec(
         select(CollectionEntry).where(
             CollectionEntry.user_id == user.id,
@@ -116,23 +120,26 @@ async def add_to_collection(
     session.add(entry)
 
     try:
+        await session.flush()
+
+        response = CollectionEntryResponse(
+            id=entry.id,
+            item=item_response,
+            statut=entry.statut,
+            note=entry.note,
+            commentaire=entry.commentaire,
+            date_ajout=entry.date_ajout,
+        )
+
         await session.commit()
-        await session.refresh(entry)
+        return response
+
     except IntegrityError:
         await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Cette attaque est déjà dans votre collection",
         )
-
-    return CollectionEntryResponse(
-        id=entry.id,
-        item=build_item_response(item),
-        statut=entry.statut,
-        note=entry.note,
-        commentaire=entry.commentaire,
-        date_ajout=entry.date_ajout,
-    )
 
 
 async def update_collection_entry(

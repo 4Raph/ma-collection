@@ -1,4 +1,3 @@
-
 import type { Attack } from "../types/Attaque";
 
 interface AttackDetailsProps {
@@ -9,67 +8,56 @@ interface AttackDetailsProps {
 function AttackDetails({ attack, onClose }: AttackDetailsProps) {
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <section
-        className="attack-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-title"
+      <div
+        className="modal-content"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="modal-header">
-          <span className="category-badge">
-            {attack.categorie}
-          </span>
+          <h2>{attack.titre}</h2>
 
           <button
             className="modal-close"
             onClick={onClose}
-            aria-label="Fermer les détails"
+            aria-label="Fermer"
           >
             ✕
           </button>
         </div>
 
         {attack.image_url && (
-          <div className="modal-image">
-            <img src={attack.image_url} alt="" />
-          </div>
+          <img
+            src={attack.image_url}
+            alt={attack.titre}
+            className="attack-detail-image"
+          />
         )}
 
-        <div className="eyebrow">
-          FICHE ATTAQUE #{attack.id}
+        <div className="attack-detail-content">
+          <p>
+            <strong>Catégorie :</strong> {attack.categorie}
+          </p>
+
+          <p>
+            <strong>Description :</strong> {attack.description}
+          </p>
+
+          <p>
+            <strong>Année :</strong> {attack.annee}
+          </p>
+
+          <p>
+            <strong>Type :</strong> {attack.type}
+          </p>
+
+          <p>
+            <strong>Niveau :</strong> {attack.niveau}
+          </p>
         </div>
 
-        <h2 id="modal-title">{attack.titre}</h2>
-
-        <p className="modal-description">
-          {attack.description}
-        </p>
-
-        <div className="modal-details">
-          <div>
-            <span className="detail-label">ANNÉE</span>
-            <strong>{attack.annee}</strong>
-          </div>
-
-          <div>
-            <span className="detail-label">TYPE</span>
-            <strong>{attack.type}</strong>
-          </div>
-
-          <div>
-            <span className="detail-label">NIVEAU</span>
-            <strong className="level-badge">{attack.niveau}</strong>
-          </div>
-        </div>
-
-        <button
-          className="primary-button modal-action"
-          onClick={onClose}
-        >
-          Fermer la fiche <span>✕</span>
+        <button className="modal-close-button" onClick={onClose}>
+          Fermer
         </button>
-      </section>
+      </div>
     </div>
   );
 }

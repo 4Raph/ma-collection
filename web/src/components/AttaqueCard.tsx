@@ -1,61 +1,37 @@
-
 import type { Attack } from "../types/Attaque";
 
 interface AttackCardProps {
   attack: Attack;
   onDetails: (attack: Attack) => void;
+  onAdd: (attack: Attack) => void;
+  isAuthenticated: boolean;
 }
 
-function AttackCard({ attack, onDetails }: AttackCardProps) {
+function AttackCard({
+  attack,
+  onDetails,
+  onAdd,
+  isAuthenticated,
+}: AttackCardProps) {
   return (
     <article className="attack-card">
-      <div className="card-top">
-        <span className="category-badge">
-          {attack.categorie}
-        </span>
-        <span className="card-id">
-          #{String(attack.id).padStart(3, "0")}
-        </span>
-      </div>
-
-      {attack.image_url && (
-        <div className="attack-image">
-          <img
-            src={attack.image_url}
-            alt=""
-            loading="lazy"
-          />
-        </div>
-      )}
-
       <h3>{attack.titre}</h3>
 
-      <p className="attack-description">
-        {attack.description}
-      </p>
+      <p>{attack.description}</p>
 
-      <div className="card-details">
-        <div>
-          <span className="detail-label">ANNÉE</span>
-          <span>{attack.annee}</span>
-        </div>
+      <p>Catégorie : {attack.categorie}</p>
+      <p>Année : {attack.annee}</p>
+      <p>Type : {attack.type}</p>
+      <p>Niveau : {attack.niveau}</p>
 
-        <div>
-          <span className="detail-label">TYPE</span>
-          <span>{attack.type}</span>
-        </div>
+      <button onClick={() => onDetails(attack)}>
+        Voir les détails
+      </button>
 
-        <div>
-          <span className="detail-label">NIVEAU</span>
-          <span className="level-badge">{attack.niveau}</span>
-        </div>
-      </div>
-
-      <button
-        className="card-button"
-        onClick={() => onDetails(attack)}
-      >
-        Voir les détails <span>↗</span>
+      <button onClick={() => onAdd(attack)}>
+        {isAuthenticated
+          ? "+ Ajouter à ma collection"
+          : "Se connecter pour ajouter"}
       </button>
     </article>
   );

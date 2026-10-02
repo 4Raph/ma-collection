@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import "./App.css";
 
@@ -6,7 +5,10 @@ import Navbar from "./components/NavBar";
 import SearchBar from "./components/SearchBar";
 import AttackCard from "./components/AttaqueCard";
 import AttackDetails from "./components/AttaqueDetails";
+import AuthForm from "./components/AuthForm";
+import CollectionView from "./components/CollectionView";
 
+import { apiRequest } from "./services/api";
 import type { Attack, ItemResponse } from "./types/Attaque";
 
 function App() {
@@ -14,45 +16,53 @@ function App() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Toutes");
   const [selectedAttack, setSelectedAttack] = useState<Attack | null>(null);
+
+  const [token, setToken] = useState<string | null>(
+    localStorage.getItem("access_token")
+  );
+
+  const [email, setEmail] = useState(
+    localStorage.getItem("user_email") ?? ""
+  );
+
+  const [showAuth, setShowAuth] = useState(false);
+  const [showCollection, setShowCollection] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    async function fetchAttacks() {
+    async function loadAttacks() {
       try {
-        const response = await fetch(
-          "http://localhost:8000/items?page=1&limit=50"
+        setLoading(true);
+        setError("");
+
+        const data = await apiRequest<ItemResponse>(
+          "/items?page=1&limit=50"
         );
 
-        if (!response.ok) {
-          throw new Error("Impossible de récupérer le catalogue.");
-        }
-
-        const data: ItemResponse = await response.json();
         setAttacks(data.results);
-      } catch {
+      } catch (err) {
         setError(
-          "Impossible de contacter l'API. Vérifie que FastAPI est démarré."
+          err instanceof Error
+            ? err.message
+            : "Impossible de charger les attaques."
         );
       } finally {
         setLoading(false);
       }
     }
 
-    fetchAttacks();
+    loadAttacks();
   }, []);
 
-  const categories = [
-    "Toutes",
-    ...new Set(attacks.map((attack) => attack.categorie)),
-  ];
-
+  // Filtre
   const filteredAttacks = attacks.filter((attack) => {
-    const searchText = search.toLowerCase();
+    const searchLower = search.toLowerCase();
 
     const matchesSearch =
-      attack.titre.toLowerCase().includes(searchText) ||
-      attack.description.toLowerCase().includes(searchText);
+      attack.titre.toLowerCase().includes(searchLower) ||
+      attack.description.toLowerCase().includes(searchLower);
 
     const matchesCategory =
       category === "Toutes" || attack.categorie === category;
@@ -60,122 +70,152 @@ function App() {
     return matchesSearch && matchesCategory;
   });
 
+  const categories = [
+    "Toutes",
+    ...Array.from(new Set(attacks.map((attack) => attack.categorie))),
+  ];
+
+  // Connexion ou inscription réussie
+  function handleAuth(newToken: string, newEmail: string) {
+    localStorage.setItem("access_token", newToken);
+    localStorage.setItem("user_email", newEmail);
+
+    setToken(newToken);
+    setEmail(newEmail);
+    setShowAuth(false);
+  }
+
+  // Déconnexion
+  function handleLogout() {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("user_email");
+
+    setToken(null);
+    setEmail("");
+    setShowCollection(false);
+  }
+
+  // Afficher le catalogue
+  function handleShowCatalogue() {
+    setShowCollection(false);
+  }
+
+  // Afficher la collection personnelle
+  function handleShowCollection() {
+    setShowCollection(true);
+  }
+
+  // Ajouter une attaque à la collection
+  async function addToCollection(attack: Attack) {
+    if (!token) {
+      setShowAuth(true);
+      return;
+    }
+
+    try {
+      await apiRequest(
+        "/me/collection",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            item_id: attack.id,
+            statut: "a_decouvrir",
+          }),
+        },
+        token
+      );
+
+      alert(`"${attack.titre}" a été ajoutée à ta collection !`);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Impossible d'ajouter cette attaque.";
+
+      alert(message);
+    }
+  }
+
   return (
     <div className="app">
-      <Navbar />
+      <Navbar
+        isAuthenticated={!!token}
+        email={email}
+        onLogin={() => setShowAuth(true)}
+        onLogout={handleLogout}
+        onShowCatalogue={handleShowCatalogue}
+        onShowCollection={handleShowCollection}
+      />
 
-      <main>
-        <section className="hero">
-          <div className="hero-content">
-            <div className="eyebrow">
-              <span className="status-dot" />
-              CYBERSECURITY DATABASE
-            </div>
-
-            <h1>
-              Explore les
-              <br />
-              <span>cyberattaques.</span>
-            </h1>
-
+      {showCollection && token ? (
+        <CollectionView token={token} />
+      ) : (
+        <>
+          <header className="hero">
+            <h1>CyberCollection</h1>
             <p>
-              Découvre les attaques informatiques, comprends leur
-              fonctionnement et construis ta propre collection.
+              Explore les attaques informatiques, découvre leur fonctionnement
+              et construis ta collection personnelle.
             </p>
+          </header>
 
-            <a className="primary-button" href="#catalogue">
-              Explorer le catalogue <span>↗</span>
-            </a>
-          </div>
+          <main className="catalogue">
+            <h2>Catalogue des attaques</h2>
 
-          <div className="hero-decoration" aria-hidden="true">
-            <div className="orbit orbit-one" />
-            <div className="orbit orbit-two" />
+            <SearchBar
+              search={search}
+              onSearchChange={setSearch}
+              category={category}
+              onCategoryChange={setCategory}
+              categories={categories}
+            />
 
-            <div className="orbit-core">
-              <span>01</span>
-              <strong>CYBER</strong>
-              <small>THREAT DATABASE</small>
-            </div>
+            {loading && <p>Chargement des attaques...</p>}
 
-            <span className="floating-tag tag-one">
-              SQL INJECTION
-            </span>
-
-            <span className="floating-tag tag-two">
-              XSS ATTACK
-            </span>
-          </div>
-        </section>
-
-        <section className="catalogue" id="catalogue">
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow">BASE DE CONNAISSANCES</div>
-              <h2>Catalogue des attaques</h2>
-              <p>
-                Explore les techniques et leurs caractéristiques.
+            {error && (
+              <p className="error-message">
+                Erreur lors du chargement : {error}
               </p>
-            </div>
+            )}
 
-            <div className="total-badge">
-              <span>{attacks.length}</span> attaques référencées
-            </div>
-          </div>
+            {!loading && !error && filteredAttacks.length === 0 && (
+              <p>Aucune attaque trouvée.</p>
+            )}
 
-          <SearchBar
-            search={search}
-            onSearchChange={setSearch}
-            category={category}
-            onCategoryChange={setCategory}
-            categories={categories}
-          />
+            {!loading && !error && (
+              <div className="attacks-grid">
+                {filteredAttacks.map((attack) => (
+                  <AttackCard
+                    key={attack.id}
+                    attack={attack}
+                    onDetails={setSelectedAttack}
+                    onAdd={addToCollection}
+                    isAuthenticated={!!token}
+                  />
+                ))}
+              </div>
+            )}
+          </main>
+        </>
+      )}
 
-          {loading && (
-            <p className="message">Chargement du catalogue...</p>
-          )}
+      {selectedAttack && (
+        <AttackDetails
+          attack={selectedAttack}
+          onClose={() => setSelectedAttack(null)}
+        />
+      )}
 
-          {!loading && error && (
-            <div className="error-message">{error}</div>
-          )}
+      {showAuth && (
+        <AuthForm
+          onAuth={handleAuth}
+          onClose={() => setShowAuth(false)}
+        />
+      )}
 
-          {!loading && !error && filteredAttacks.length === 0 && (
-            <p className="message">Aucune attaque trouvée.</p>
-          )}
-
-          {!loading && !error && filteredAttacks.length > 0 && (
-            <div className="attack-grid">
-              {filteredAttacks.map((attack) => (
-                <AttackCard
-                  key={attack.id}
-                  attack={attack}
-                  onDetails={setSelectedAttack}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-
-        {selectedAttack && (
-          <AttackDetails
-            attack={selectedAttack}
-            onClose={() => setSelectedAttack(null)}
-          />
-        )}
-
-        <footer>
-          <a className="brand footer-brand" href="#">
-            Cyber<span>Collection</span>
-          </a>
-
-          <p>Apprendre. Comprendre. Collectionner.</p>
-
-          <span className="footer-status">
-            <span className="status-dot" />
-            API CONNECTÉE
-          </span>
-        </footer>
-      </main>
+      <footer className="footer">
+        <p>CyberCollection — Projet B2</p>
+      </footer>
     </div>
   );
 }
