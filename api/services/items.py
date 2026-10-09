@@ -1,11 +1,18 @@
-from sqlmodel import func, select
-from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi import HTTPException, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from models import Item
 from schemas.item import ItemListResponse, ItemResponse
 
 
-async def get_items(session: AsyncSession,q: str | None,categorie: str | None,page: int,limit: int) -> ItemListResponse:
+async def get_items(
+    session: AsyncSession,
+    q: str | None,
+    categorie: str | None,
+    page: int,
+    limit: int,
+) -> ItemListResponse:
     statement = select(Item)
 
     if q:
@@ -20,32 +27,34 @@ async def get_items(session: AsyncSession,q: str | None,categorie: str | None,pa
     count_statement = select(func.count()).select_from(
         statement.subquery()
     )
-
-    count_result = await session.exec(count_statement)
-    total = count_result.one()
+    count_result = await session.execute(count_statement)
+    total = count_result.scalar_one()
 
     offset = (page - 1) * limit
-
     statement = statement.offset(offset).limit(limit)
 
-    result = await session.exec(statement)
-    items = result.all()
+    result = await session.execute(statement)
+    items = result.scalars().all()
 
     return ItemListResponse(
         total=total,
         page=page,
         limit=limit,
-        results=[ItemResponse.model_validate(item)for item in items],)
+        results=[
+            ItemResponse.model_validate(item)
+            for item in items
+        ],
+    )
 
 
 async def get_item_by_id(
     session: AsyncSession,
     item_id: int,
 ) -> ItemResponse:
-    result = await session.exec(
+    result = await session.execute(
         select(Item).where(Item.id == item_id)
     )
-    item = result.first()
+    item = result.scalar_one_or_none()
 
     if item is None:
         raise HTTPException(

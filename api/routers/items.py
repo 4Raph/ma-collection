@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.database import get_session
 from schemas.item import ItemListResponse

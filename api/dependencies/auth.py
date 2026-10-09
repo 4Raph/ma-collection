@@ -3,8 +3,8 @@ from typing import Annotated
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.security import decode_access_token
 from db.database import get_session
@@ -17,7 +17,7 @@ bearer_scheme = HTTPBearer()
 async def get_current_user(
     credentials: Annotated[
         HTTPAuthorizationCredentials,
-        Depends(bearer_scheme)
+        Depends(bearer_scheme),
     ],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> User:
@@ -39,10 +39,10 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    result = await session.exec(
+    result = await session.execute(
         select(User).where(User.id == user_id)
     )
-    user = result.first()
+    user = result.scalar_one_or_none()
 
     if user is None:
         raise HTTPException(

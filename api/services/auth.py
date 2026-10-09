@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.security import (
     create_access_token,
@@ -21,11 +21,12 @@ async def register_user(
     session: AsyncSession,
     data: RegisterRequest,
 ) -> UserResponse:
-    existing = await session.exec(
+    result = await session.execute(
         select(User).where(User.email == str(data.email))
     )
+    existing = result.scalar_one_or_none()
 
-    if existing.first() is not None:
+    if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Cette adresse email est déjà utilisée",
@@ -54,10 +55,10 @@ async def login_user(
     session: AsyncSession,
     data: LoginRequest,
 ) -> TokenResponse:
-    result = await session.exec(
+    result = await session.execute(
         select(User).where(User.email == str(data.email))
     )
-    user = result.first()
+    user = result.scalar_one_or_none()
 
     if user is None or not verify_password(
         data.password,

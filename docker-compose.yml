@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16
+    container_name: ma-collection-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cybercollection
+      POSTGRES_USER: cyberuser
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Définis POSTGRES_PASSWORD dans .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cyberuser -d cybercollection"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: ma-collection-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cyberuser:${POSTGRES_PASSWORD}@db:5432/cybercollection
+      JWT_SECRET: ${JWT_SECRET:?Définis JWT_SECRET dans .env}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-30}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

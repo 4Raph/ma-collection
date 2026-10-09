@@ -1,18 +1,60 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import UniqueConstraint
-from sqlmodel import Field, SQLModel
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import Mapped, mapped_column
+
+from db.base import Base
 
 
-class CollectionEntry(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("user_id", "item_id"),)
+class CollectionEntry(Base):
+    __tablename__ = "collectionentry"
 
-    id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id")
-    item_id: int = Field(foreign_key="item.id")
-    statut: str = "a_decouvrir"
-    note: int | None = Field(default=None, ge=1, le=5)
-    commentaire: str | None = None
-    date_ajout: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+    __table_args__ = (
+        UniqueConstraint("user_id", "item_id"),
+        CheckConstraint(
+            "note IS NULL OR (note >= 1 AND note <= 5)",
+            name="ck_collectionentry_note",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("user.id"),
+        nullable=False,
+    )
+
+    item_id: Mapped[int] = mapped_column(
+        ForeignKey("item.id"),
+        nullable=False,
+    )
+
+    statut: Mapped[str] = mapped_column(
+        String,
+        default="a_decouvrir",
+        nullable=False,
+    )
+
+    note: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+
+    commentaire: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    date_ajout: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )

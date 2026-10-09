@@ -1,11 +1,10 @@
-
 from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import HTTPException, status
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import func, select
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import CollectionEntry, Item, User
 from schemas.collection import (
@@ -49,16 +48,16 @@ async def list_collection(
     else:
         statement = statement.order_by(CollectionEntry.date_ajout.desc())
 
-    result = await session.exec(statement)
-    entries = result.all()
+    result = await session.execute(statement)
+    entries = result.scalars().all()
 
     responses: list[CollectionEntryResponse] = []
 
     for entry in entries:
-        item_result = await session.exec(
+        item_result = await session.execute(
             select(Item).where(Item.id == entry.item_id)
         )
-        item = item_result.first()
+        item = item_result.scalar_one_or_none()
 
         if item is not None:
             responses.append(
@@ -80,10 +79,10 @@ async def add_to_collection(
     user: User,
     data: CollectionCreate,
 ) -> CollectionEntryResponse:
-    item_result = await session.exec(
+    item_result = await session.execute(
         select(Item).where(Item.id == data.item_id)
     )
-    item = item_result.first()
+    item = item_result.scalar_one_or_none()
 
     if item is None:
         raise HTTPException(
@@ -91,18 +90,16 @@ async def add_to_collection(
             detail="Item introuvable",
         )
 
-    # Préparer les données de l'item avant le commit.
-    # Cela évite de relire ses attributs après la transaction.
     item_response = build_item_response(item)
 
-    existing = await session.exec(
+    existing = await session.execute(
         select(CollectionEntry).where(
             CollectionEntry.user_id == user.id,
             CollectionEntry.item_id == data.item_id,
         )
     )
 
-    if existing.first() is not None:
+    if existing.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Cette attaque est déjà dans votre collection",
@@ -148,13 +145,13 @@ async def update_collection_entry(
     entry_id: int,
     data: CollectionUpdate,
 ) -> CollectionEntryResponse:
-    result = await session.exec(
+    result = await session.execute(
         select(CollectionEntry).where(
             CollectionEntry.id == entry_id,
             CollectionEntry.user_id == user.id,
         )
     )
-    entry = result.first()
+    entry = result.scalar_one_or_none()
 
     if entry is None:
         raise HTTPException(
@@ -167,14 +164,13 @@ async def update_collection_entry(
     for field, value in changes.items():
         setattr(entry, field, value)
 
-    session.add(entry)
     await session.commit()
     await session.refresh(entry)
 
-    item_result = await session.exec(
+    item_result = await session.execute(
         select(Item).where(Item.id == entry.item_id)
     )
-    item = item_result.first()
+    item = item_result.scalar_one_or_none()
 
     if item is None:
         raise HTTPException(
@@ -197,13 +193,13 @@ async def delete_collection_entry(
     user: User,
     entry_id: int,
 ) -> None:
-    result = await session.exec(
+    result = await session.execute(
         select(CollectionEntry).where(
             CollectionEntry.id == entry_id,
             CollectionEntry.user_id == user.id,
         )
     )
-    entry = result.first()
+    entry = result.scalar_one_or_none()
 
     if entry is None:
         raise HTTPException(
@@ -219,12 +215,12 @@ async def get_collection_stats(
     session: AsyncSession,
     user: User,
 ) -> CollectionStats:
-    total_result = await session.exec(
+    total_result = await session.execute(
         select(func.count())
         .select_from(CollectionEntry)
         .where(CollectionEntry.user_id == user.id)
     )
-    total = total_result.one()
+    total = total_result.scalar_one()
 
     counts: dict[str, int] = {
         "a_decouvrir": 0,
@@ -232,7 +228,7 @@ async def get_collection_stats(
         "termine": 0,
     }
 
-    status_result = await session.exec(
+    status_result = await session.execute(
         select(
             CollectionEntry.statut,
             func.count(CollectionEntry.id),
@@ -244,13 +240,13 @@ async def get_collection_stats(
     for statut, count in status_result.all():
         counts[statut] = count
 
-    average_result = await session.exec(
+    average_result = await session.execute(
         select(func.avg(CollectionEntry.note)).where(
             CollectionEntry.user_id == user.id,
             CollectionEntry.note.is_not(None),
         )
     )
-    average = average_result.one()
+    average = average_result.scalar_one()
 
     return CollectionStats(
         total=total,
