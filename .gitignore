@@ -1,4 +1,10 @@
-.venv/
-.env
 *.db
+.env
+.env.*
+!.env.example
+api/.env
+.venv/
+web/node_modules/
+web/dist/
 __pycache__/
+*.pyc
